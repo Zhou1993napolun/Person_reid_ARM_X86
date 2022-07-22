@@ -30,6 +30,46 @@ use the command :
 python3 person_count.py --video_path 'your video path'
 ```
 
+if you have this problem ：
+
+```
+ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+```
+
+Then use this command to install opencv-python-headless :
+
+```
+pip install opencv-python-headless
+```
+
+After install all the dependences of the project. We should go to our virtual environment path:
+
+```
+cd your_virtual_environment_path/lib/lib/python3.7/site-packages/torch/nn/modules/upsampling.py
+```
+
+And change the `upsampling.py` file. In line 152:
+
+```
+def forward(self, input: Tensor) -> Tensor:
+# 	return F.interpolate(input, self.size, self.scale_factor, self.mode, self.align_corners, recompute_scale_factor=self.recompute_scale_factor)
+	return F.interpolate(input, self.size, self.scale_factor, self.mode, self.align_corners)
+```
+
+And if your environment is x86 environment, please open the `reid_clothes.py` file to the file 265:
+
+```
+ln = self.clo_net1.getLayerNames()
+# ln = [ln[i - 1] for i in self.clo_net1.getUnconnectedOutLayers()]
+ln = [ln[i[0] - 1] for i in self.clo_net1.getUnconnectedOutLayers()]
+```
+
+Finally, we only should use these command to run the project.
+
+```
+python3 person_count.py --video_path 'your video path'
+```
+
 
 
 For the camera as input option, we will add it in a later optimization.
