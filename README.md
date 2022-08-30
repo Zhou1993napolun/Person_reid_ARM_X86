@@ -70,6 +70,13 @@ Finally, we only should use these command to run the project.
 python3 person_count.py --video_path 'your video path'
 ```
 
+And we improved the accuracy of the reid. And the new file is `reid_improved.py` you can use this command to use this file:
+
+```
+python3 reid_improved.py --video_path 'your video path'
+```
+
+And to accommodate reid detection in a wider range of situations. We add `self.new_ID_Threshold` in line 105. You can adjust this parameter, which ranges from 0 to 1, depending on how densely populated the scene is, and turn it down when the scene is densely populated. When the scene is sparse with people, you can turn the parameter up.
 
 
 For the camera as input option, we will add it in a later optimization.
