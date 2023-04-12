@@ -113,6 +113,9 @@ class yolo_reid():
         down_count = 0
         class_counter = Counter()   # store counts of each detected class
         already_counted = deque(maxlen=50)   # temporary memory for storing counted IDs
+        temp_path, vid_writer = None, None
+        fourcc='mp4v'
+        save_path = './output.mp4'
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
             # print('aaaaaaaa', video_path, img.shape, im0s.shape, vid_cap)
@@ -201,6 +204,16 @@ class yolo_reid():
             #     ori_img = put_text_to_cv2_img_with_pil(ori_img, label, (x1 + 5, y1 - t_size[1] - 2), (255, 0, 0))
 
             end = time_synchronized()
+            if temp_path != save_path:  # new video
+                temp_path = save_path
+                if isinstance(vid_writer, cv2.VideoWriter):
+                    vid_writer.release()  # release previous video writer
+    
+                fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+            vid_writer.write(ori_img)
 
             if self.args.display:
                 # cv2.imshow("test", ori_img)
