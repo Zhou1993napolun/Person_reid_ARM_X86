@@ -1,4 +1,4 @@
-# 从git复现reid
+# 从git复现reid - person 部分
 
 _本文件为在 Intel NUC1 上部署 REID_Person 的实际操作步骤。以下步骤均参照 README 文件实行，可作为原 README 文件的补充。_
 
@@ -23,7 +23,7 @@ conda activate reid0406
 
 ## 5. 安装 requirements
 ```sh
-pip install -r requirements.txt # 注意READ_ME中的文件名少了s
+pip install -r requirements.txt # 注意README中的文件名少了s
 ```
 刚说着这里可能会出问题，这问题就来了。报错：
 ```sh
