@@ -115,7 +115,10 @@ class yolo_reid():
         already_counted = deque(maxlen=50)   # temporary memory for storing counted IDs
         temp_path, vid_writer = None, None
         fourcc='mp4v'
-        save_path = './output.mp4'
+        if not self.args.img : 
+            save_path = './output/'+self.args.outname+'.mp4'
+        else: 
+            save_path = './output/' + self.args.outname + '.jpg'
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
             # print('aaaaaaaa', video_path, img.shape, im0s.shape, vid_cap)
@@ -204,16 +207,19 @@ class yolo_reid():
             #     ori_img = put_text_to_cv2_img_with_pil(ori_img, label, (x1 + 5, y1 - t_size[1] - 2), (255, 0, 0))
 
             end = time_synchronized()
-            if temp_path != save_path:  # new video
-                temp_path = save_path
-                if isinstance(vid_writer, cv2.VideoWriter):
-                    vid_writer.release()  # release previous video writer
-    
-                fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
-            vid_writer.write(ori_img)
+            if self.args.img: 
+                cv2.imwrite(save_path,ori_img)
+            else:
+                if temp_path != save_path:  # new video
+                    temp_path = save_path
+                    if isinstance(vid_writer, cv2.VideoWriter):
+                        vid_writer.release()  # release previous video writer
+        
+                    fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                    width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+                vid_writer.write(ori_img)
 
             if self.args.display:
                 # cv2.imshow("test", ori_img)
@@ -229,9 +235,10 @@ class yolo_reid():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_path", default='./input_reid.mp4', type=str)
+    parser.add_argument("--input_path", dest='video_path',default='./student_demo.mp4', type=str)
     parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     parser.add_argument('--device', default='cuda:0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--img', action='store_true', default = False, help='whether input is a image (.jpg)')
     # yolov5
     parser.add_argument('--weights', nargs='+', type=str, default='./weights/yolov5s.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=960, help='inference size (pixels)')
@@ -248,6 +255,8 @@ def parse_args():
     parser.add_argument("--frame_interval", type=int, default=1)
     parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
 
+    parser.add_argument("--outname", default='output_improved', type=str)
+    
     return parser.parse_args()
 
 

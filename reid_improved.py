@@ -102,7 +102,7 @@ class yolo_reid():
         self.img_cnt = 0
 
         # special for the class test
-        self.new_ID_Threshold = 0.3
+        self.new_ID_Threshold = args.id_thres
         self.real_ID_list = []      # the final ID list in the class
         self.pre_ID_location_list = []      # the ID's location
 
@@ -154,7 +154,12 @@ class yolo_reid():
 
     def deep_sort(self):
         idx_frame = 0
-
+        temp_path, vid_writer = None, None
+        fourcc='mp4v'
+        if not self.args.img : 
+            save_path = './output/'+self.args.outname+'.mp4'
+        else: 
+            save_path = './output/' + self.args.outname + '.jpg'
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
 
@@ -219,7 +224,20 @@ class yolo_reid():
                 self.img_cnt += 1
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
-
+            if self.args.img: 
+                cv2.imwrite(save_path,ori_img)
+            else:
+                if temp_path != save_path:  # new video
+                    temp_path = save_path
+                    if isinstance(vid_writer, cv2.VideoWriter):
+                        vid_writer.release()  # release previous video writer
+        
+                    fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                    width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+                vid_writer.write(ori_img)
+            
             self.logger.info("{}/time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
                              .format(idx_frame, end - t1, 1 / (end - t1),
                                      bbox_xywh.shape[0], len(outputs)))
@@ -229,9 +247,11 @@ class yolo_reid():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_path", default='./student_demo.mp4', type=str)
+    parser.add_argument("--input_path", dest='video_path',default='./student_demo.mp4', type=str)
     parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     parser.add_argument('--device', default='cuda:0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--img', action='store_true', default = False, help='whether input is a image (.jpg)')
+    parser.add_argument('--id_thres',type=float,default=0.3,help='Threshold to distinguish different persons')
     # yolov5
     parser.add_argument('--weights', nargs='+', type=str, default='./weights/yolov5s.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=960, help='inference size (pixels)')
@@ -244,11 +264,11 @@ def parse_args():
     # deep_sort
     parser.add_argument("--sort", default=True, help='True: sort model, False: reid model')
     parser.add_argument("--config_deepsort", type=str, default="./configs/deep_sort.yaml")
-    parser.add_argument("--display", default=True, help='show resule')
+    parser.add_argument("--display", default=True, help='show result')
     parser.add_argument("--frame_interval", type=int, default=1)
     parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
 
-    parser.add_argument("--outname", default='accuracy_test', type=str)
+    parser.add_argument("--outname", default='output_improved', type=str)
 
     return parser.parse_args()
 
