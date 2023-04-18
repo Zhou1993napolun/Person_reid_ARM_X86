@@ -10,7 +10,7 @@ import warnings
 import argparse
 import numpy as np
 import onnxruntime as ort
-from utils.datasets import LoadStreams, LoadImages
+from utils.datasets import LoadStreams, LoadImages, LoadWebcam
 from utils.draw import draw_boxes
 from utils.general import check_img_size
 from utils.torch_utils import time_synchronized
@@ -96,7 +96,17 @@ class yolo_reid():
 
         self.person_detect = Person_detect(self.args, self.video_path)
         imgsz = check_img_size(args.img_size, s=32)  # self.model.stride.max())  # check img_size
-        self.dataset = LoadImages(self.video_path, img_size=imgsz)
+        if args.cam == -1:
+            self.dataset = LoadImages(self.video_path, img_size=imgsz)
+            self.wbc = -1
+        else :
+            try:
+                self.dataset = LoadStreams(self.video_path, img_size=imgsz)
+                self.wbc = 0
+            except:
+                self.wbc = 1
+                self.dataset = LoadWebcam(self.video_path, img_size=imgsz)
+        print('webcam : ' ,self.wbc)
         self.deepsort = build_tracker(cfg, args.sort, use_cuda=use_cuda)
         self.img_cnt = 0
 
@@ -115,13 +125,17 @@ class yolo_reid():
         already_counted = deque(maxlen=50)   # temporary memory for storing counted IDs
         temp_path, vid_writer = None, None
         fourcc='mp4v'
-        if not self.args.img : 
-            save_path = './output/'+self.args.outname+'.mp4'
-        else: 
+        if self.args.img :  
             save_path = './output/' + self.args.outname + '.jpg'
+        else:
+            save_path = './output/'+self.args.outname+'.mp4'
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
-            # print('aaaaaaaa', video_path, img.shape, im0s.shape, vid_cap)
+            if self.wbc == 0:
+                ori_img = np.array(ori_img)
+                img = img[0]
+                ori_img = ori_img[0]
+            print('aaaaaaaa', video_path, img.shape, ori_img.shape, vid_cap) 
             t1 = time_synchronized()
 
             # yolo detection
