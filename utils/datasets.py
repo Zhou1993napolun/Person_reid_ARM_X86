@@ -197,7 +197,7 @@ class LoadWebcam:  # for inference
             while True:
                 n += 1
                 self.cap.grab()
-                if n % 30 == 0:  # skip frames
+                if n % 10 == 0:  # skip frames 30
                     ret_val, img0 = self.cap.retrieve()
                     if ret_val:
                         break

@@ -11,7 +11,7 @@ Password: 1234
 [Google Drive] https://drive.google.com/file/d/1QYQ6I3j8iwXWwnV6uKbKosRkzCpUpBdv/view?usp=sharing
 
 ## 2. Unzip
-unzip it under `deep_sort/deep/`. 
+Unzip it under `deep_sort/deep/`. 
 
 ## 3. Create Conda Environment
 > Python version is 3.7 in our tests. Creating a new environment is recommended. 
@@ -70,14 +70,25 @@ python3 reid_improved.py --input_path '[YOUR_VIDEO_PATH]'
 ### Run with image input
 Argument `--img` needs to appear in order to run test on a image input:
 ```sh
-python3 reid_improved.py --input_path '[YOUR_IMAGE_PATH]' --img
+python3 person_count.py --input_path '[YOUR_IMAGE_PATH]' --img
 ```
 Or with the improved method: 
 ```sh
 python3 reid_improved.py --input_path '[YOUR_IMAGE_PATH]' --img
 ```
 
+### Run with ip cam input
+Argument `--ipcam` is needed. Specify the ip address of the input camera by the argument `--input_path`. 
+```sh 
+python3 person_count.py --input_path '[CAMERA_IP_ADDRESS]' --ipcam
+```
+Or with the improved method: 
+```sh
+python3 reid_improved.py --input_path '[CAMERA_IP_ADDRESS]' --ipcam
+```
+Once started, a blanck image window will pop up. There will be command line outputs to check the program's current status. To stop the program, click on the blanck image window and press q. There may be a short lag which is normal. The output will be stored in `output/`. 
+
 ### Improvements of the result
 With any of the above files, use `--help` to see supported arguments.  
-Specially, if different persons are not being well distinguished, you may run with the argument `--id_thres`. Larger threshold is recommended for crowded scenes.   
+Specially, if different persons are not being well distinguished, you may run the improved method with the argument `--id_thres`. Larger threshold is recommended for crowded scenes.   
 If the count is much larger than the number of persons, you may run with a higher confidence threshold by specifying the argument `--conf-thres`. 

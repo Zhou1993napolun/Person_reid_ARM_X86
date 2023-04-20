@@ -96,16 +96,16 @@ class yolo_reid():
 
         self.person_detect = Person_detect(self.args, self.video_path)
         imgsz = check_img_size(args.img_size, s=32)  # self.model.stride.max())  # check img_size
-        if args.cam == -1:
+        if args.cam == -1 and not args.ipcam:
             self.dataset = LoadImages(self.video_path, img_size=imgsz)
             self.wbc = -1
-        else :
-            try:
-                self.dataset = LoadStreams(self.video_path, img_size=imgsz)
-                self.wbc = 0
-            except:
-                self.wbc = 1
-                self.dataset = LoadWebcam(self.video_path, img_size=imgsz)
+        elif args.ipcam :
+            self.wbc = 1
+            self.dataset = LoadWebcam(self.video_path, img_size=imgsz)
+        else:
+            # This part is not tested. 
+            self.dataset = LoadStreams(args.cam, img_size=imgsz)
+            self.wbc = 0
         print('webcam : ' ,self.wbc)
         self.deepsort = build_tracker(cfg, args.sort, use_cuda=use_cuda)
         self.img_cnt = 0
@@ -253,6 +253,7 @@ def parse_args():
     parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     parser.add_argument('--device', default='cuda:0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--img', action='store_true', default = False, help='whether input is a image (.jpg)')
+    parser.add_argument('--ipcam', action='store_true', default = False, help='whether input is a ip webcam (.jpg)')
     # yolov5
     parser.add_argument('--weights', nargs='+', type=str, default='./weights/yolov5s.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=960, help='inference size (pixels)')
@@ -269,7 +270,7 @@ def parse_args():
     parser.add_argument("--frame_interval", type=int, default=1)
     parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
 
-    parser.add_argument("--outname", default='output_improved', type=str)
+    parser.add_argument("--outname", default='output', type=str)
     
     return parser.parse_args()
 
