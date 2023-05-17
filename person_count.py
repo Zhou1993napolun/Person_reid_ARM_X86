@@ -10,7 +10,7 @@ import warnings
 import argparse
 import numpy as np
 import onnxruntime as ort
-from utils.datasets import LoadStreams, LoadImages
+from utils.datasets import LoadStreams, LoadImages, LoadWebcam
 from utils.draw import draw_boxes
 from utils.general import check_img_size
 from utils.torch_utils import time_synchronized
@@ -96,7 +96,17 @@ class yolo_reid():
 
         self.person_detect = Person_detect(self.args, self.video_path)
         imgsz = check_img_size(args.img_size, s=32)  # self.model.stride.max())  # check img_size
-        self.dataset = LoadImages(self.video_path, img_size=imgsz)
+        if args.cam == -1 and not args.ipcam:
+            self.dataset = LoadImages(self.video_path, img_size=imgsz)
+            self.wbc = -1
+        elif args.ipcam :
+            self.wbc = 1
+            self.dataset = LoadWebcam(self.video_path, img_size=imgsz)
+        else:
+            # This part is not tested. 
+            self.dataset = LoadStreams(args.cam, img_size=imgsz)
+            self.wbc = 0
+        print('webcam : ' ,self.wbc)
         self.deepsort = build_tracker(cfg, args.sort, use_cuda=use_cuda)
         self.img_cnt = 0
 
@@ -113,9 +123,19 @@ class yolo_reid():
         down_count = 0
         class_counter = Counter()   # store counts of each detected class
         already_counted = deque(maxlen=50)   # temporary memory for storing counted IDs
+        temp_path, vid_writer = None, None
+        fourcc='mp4v'
+        if self.args.img :  
+            save_path = './output/' + self.args.outname + '.jpg'
+        else:
+            save_path = './output/'+self.args.outname+'.mp4'
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
-            # print('aaaaaaaa', video_path, img.shape, im0s.shape, vid_cap)
+            if self.wbc == 0:
+                ori_img = np.array(ori_img)
+                img = img[0]
+                ori_img = ori_img[0]
+            print('aaaaaaaa', video_path, img.shape, ori_img.shape, vid_cap) 
             t1 = time_synchronized()
 
             # yolo detection
@@ -201,6 +221,19 @@ class yolo_reid():
             #     ori_img = put_text_to_cv2_img_with_pil(ori_img, label, (x1 + 5, y1 - t_size[1] - 2), (255, 0, 0))
 
             end = time_synchronized()
+            if self.args.img: 
+                cv2.imwrite(save_path,ori_img)
+            else:
+                if temp_path != save_path:  # new video
+                    temp_path = save_path
+                    if isinstance(vid_writer, cv2.VideoWriter):
+                        vid_writer.release()  # release previous video writer
+        
+                    fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                    width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+                vid_writer.write(ori_img)
 
             if self.args.display:
                 # cv2.imshow("test", ori_img)
@@ -216,9 +249,11 @@ class yolo_reid():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_path", default='./input_reid.mp4', type=str)
+    parser.add_argument("--input_path", dest='video_path',default='./student_demo.mp4', type=str)
     parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     parser.add_argument('--device', default='cuda:0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--img', action='store_true', default = False, help='whether input is a image (.jpg)')
+    parser.add_argument('--ipcam', action='store_true', default = False, help='whether input is a ip webcam (.jpg)')
     # yolov5
     parser.add_argument('--weights', nargs='+', type=str, default='./weights/yolov5s.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=960, help='inference size (pixels)')
@@ -235,6 +270,8 @@ def parse_args():
     parser.add_argument("--frame_interval", type=int, default=1)
     parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
 
+    parser.add_argument("--outname", default='output', type=str)
+    
     return parser.parse_args()
 
 
