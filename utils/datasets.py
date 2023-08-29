@@ -181,6 +181,8 @@ class LoadWebcam:  # for inference
 
     def __next__(self):
         self.count += 1
+        cv2.namedWindow('test',cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('test',0)
         if cv2.waitKey(1) == ord('q'):  # q to quit
             self.cap.release()
             cv2.destroyAllWindows()
@@ -195,7 +197,7 @@ class LoadWebcam:  # for inference
             while True:
                 n += 1
                 self.cap.grab()
-                if n % 30 == 0:  # skip frames
+                if n % 10 == 0:  # skip frames 30
                     ret_val, img0 = self.cap.retrieve()
                     if ret_val:
                         break
@@ -212,7 +214,7 @@ class LoadWebcam:  # for inference
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
 
-        return img_path, img, img0, None
+        return img_path, img, img0, self.cap # None
 
     def __len__(self):
         return 0
@@ -236,6 +238,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
             # Start the thread to read frames from the video stream
             print('%g/%g: %s... ' % (i + 1, n, s), end='')
             cap = cv2.VideoCapture(0 if s == '0' else s)
+            self.cap = cap
             assert cap.isOpened(), 'Failed to open %s' % s
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -257,6 +260,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
         n = 0
         while cap.isOpened():
             n += 1
+            print(f'update {n}')
             # _, self.imgs[index] = cap.read()
             cap.grab()
             if n == 4:  # read every 4th frame
@@ -270,6 +274,9 @@ class LoadStreams:  # multiple IP or RTSP cameras
 
     def __next__(self):
         self.count += 1
+        print(f'next {self.count}')
+        cv2.namedWindow('test',cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('test',0)
         img0 = self.imgs.copy()
         if cv2.waitKey(1) == ord('q'):  # q to quit
             cv2.destroyAllWindows()
@@ -285,7 +292,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
         img = img[:, :, :, ::-1].transpose(0, 3, 1, 2)  # BGR to RGB, to bsx3x416x416
         img = np.ascontiguousarray(img)
 
-        return self.sources, img, img0, None
+        return self.sources, img, img0, self.cap #None
 
     def __len__(self):
         return 0  # 1E12 frames = 32 streams at 30 FPS for 30 years
