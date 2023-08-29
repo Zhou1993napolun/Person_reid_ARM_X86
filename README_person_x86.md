@@ -77,6 +77,16 @@ Or with the improved method:
 python3 reid_improved.py --input_path '[YOUR_IMAGE_PATH]' --img
 ```
 
+### Run with webcam input
+Use `--camera [cameraid]` to run test on a webcam input:
+```sh
+python3 reid_improved.py --camera '[CAMERA_IP_OR_ID]'
+```
+Or with the improved method: 
+```sh
+python3 reid_improved.py --input_path '[CAMERA_IP_OR_ID]'
+```
+
 ### Improvements of the result
 With any of the above files, use `--help` to see supported arguments.  
 Specially, if different persons are not being well distinguished, you may run with the argument `--id_thres`. Larger threshold is recommended for crowded scenes.   

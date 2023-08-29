@@ -4,13 +4,14 @@
 # @Author : zengwb
 
 import os
+from tkinter import N
 import cv2
 import torch
 import warnings
 import argparse
 import numpy as np
 import onnxruntime as ort
-from utils.datasets import LoadStreams, LoadImages
+from utils.datasets import LoadStreams, LoadImages, LoadWebcam
 from utils.draw import draw_boxes
 from utils.general import check_img_size
 from utils.torch_utils import time_synchronized
@@ -24,6 +25,16 @@ from collections import Counter
 from collections import deque
 import math
 from PIL import Image, ImageDraw, ImageFont
+
+from io import BytesIO
+import threading
+from flask import Flask, render_template, Response
+
+outputFrame = None
+lock = threading.Lock()
+loginfo = "Video Stream is Running..."
+
+app = Flask(__name__)
 
 def tlbr_midpoint(box):
     minX, minY, maxX, maxY = box
@@ -96,9 +107,13 @@ class yolo_reid():
 
         self.person_detect = Person_detect(self.args, self.video_path)
         imgsz = check_img_size(args.img_size, s=32)  # self.model.stride.max())  # check img_size
-        self.dataset = LoadImages(self.video_path, img_size=imgsz)
+        if args.cam:
+            self.dataset = LoadWebcam(pipe=args.cam,img_size=imgsz)
+        else:
+            self.dataset = LoadImages(self.video_path, img_size=imgsz)
         self.deepsort = build_tracker(cfg, args.sort, use_cuda=use_cuda)
         self.img_cnt = 0
+        
 
     def deep_sort(self):
         idx_frame = 0
@@ -119,6 +134,9 @@ class yolo_reid():
             save_path = './output/'+self.args.outname+'.mp4'
         else: 
             save_path = './output/' + self.args.outname + '.jpg'
+        
+        
+        global outputFrame, lock
         for video_path, img, ori_img, vid_cap in self.dataset:
             idx_frame += 1
             # print('aaaaaaaa', video_path, img.shape, im0s.shape, vid_cap)
@@ -207,19 +225,42 @@ class yolo_reid():
             #     ori_img = put_text_to_cv2_img_with_pil(ori_img, label, (x1 + 5, y1 - t_size[1] - 2), (255, 0, 0))
 
             end = time_synchronized()
-            if self.args.img: 
-                cv2.imwrite(save_path,ori_img)
-            else:
-                if temp_path != save_path:  # new video
-                    temp_path = save_path
-                    if isinstance(vid_writer, cv2.VideoWriter):
-                        vid_writer.release()  # release previous video writer
-        
-                    fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                    width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
-                vid_writer.write(ori_img)
+            if not self.args.cam:
+                if self.args.img: 
+                    cv2.imwrite(save_path,ori_img)
+                else:
+                    if temp_path != save_path:  # new video
+                        temp_path = save_path
+                        if isinstance(vid_writer, cv2.VideoWriter):
+                            vid_writer.release()  # release previous video writer
+            
+                        fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                        width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+                    vid_writer.write(ori_img)
+            else :
+                    
+                '''
+                add for web
+                '''
+                flag, encodedImage = cv2.imencode(".jpg", ori_img)
+
+                my_stringIObytes = BytesIO(encodedImage)
+                my_stringIObytes.seek(0)
+
+                with lock:
+                    print("Yes done this")
+                    outputFrame = my_stringIObytes.read()
+                    cv2.imwrite('./camtest/test.jpg', ori_img)
+
+                '''
+                add for web
+                '''
+
+                cv2.imshow("test", ori_img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
             if self.args.display:
                 # cv2.imshow("test", ori_img)
@@ -233,10 +274,42 @@ class yolo_reid():
                              .format(idx_frame, end - t1, 1 / (end - t1),
                                      bbox_xywh.shape[0], len(outputs)))
 
+def generate():
+    """Video streaming generator function."""
+    # grab global references to the output frame and lock variables
+    global outputFrame, lock
+
+    # loop over frames from the output stream
+    while True:
+        # wait until the lock is acquired
+        with lock:
+            # check if the output frame is available, otherwise skip
+            # the iteration of the loop
+            if outputFrame is None:
+                print("OutputFrame is None!")
+                continue
+
+            # # encode the frame in JPEG format
+            # (flag, encodedImage) = cv2.imencode(".jpg", outputFrame)
+            #
+            # ensure the frame was successfully encoded
+            # if not flag:
+            #     continue
+            encodedImage = outputFrame
+        # yield the output frame in the byte format
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    """Video streaming route. Put this in the src attribute of an img tag."""
+    return Response(generate(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", dest='video_path',default='./student_demo.mp4', type=str)
-    parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
+    parser.add_argument("--camera", action="store", dest="cam", type=str, default=None)
     parser.add_argument('--device', default='cuda:0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--img', action='store_true', default = False, help='whether input is a image (.jpg)')
     # yolov5
@@ -260,11 +333,22 @@ def parse_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+@app.route('/')
+def main():
     args = parse_args()
     cfg = get_config()
     cfg.merge_from_file(args.config_deepsort)
 
-    yolo_reid = yolo_reid(cfg, args, path=args.video_path)
+    reid = yolo_reid(cfg, args, path=args.video_path)
     with torch.no_grad():
-        yolo_reid.deep_sort()
+        reid.deep_sort()
+
+
+
+if __name__ == '__main__':
+    
+        t = threading.Thread(target=main)
+        t.daemon = True
+        t.start()
+        app.run(host='0.0.0.0', threaded=True, debug=True, port="8080", use_reloader=False)
+
